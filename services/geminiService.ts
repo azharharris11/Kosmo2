@@ -10,130 +10,145 @@ const PRICING = {
 // Helper to format date nicely
 const formatDate = (dateString: string) => {
   if (!dateString) return "SAAT INI";
-  const date = new Date(dateString + "-01"); // Append day to make it parseable
+  const date = new Date(dateString + "-01"); 
   return date.toLocaleDateString('id-ID', { year: 'numeric', month: 'long' }).toUpperCase();
 };
 
-// Consolidated Sections with CONTINUATION LOGIC
-const getConsolidatedSections = (dateContext: string, clientName: string = "Klien") => [
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// --- 1. SYSTEM INSTRUCTION BARU (OTAK ANALIS, BUKAN PENYAIR) ---
+const SYSTEM_INSTRUCTION = `
+PERAN: Anda adalah Natalie Lau, Konsultan Strategi Astrologi Senior.
+VISI: Menyajikan laporan analisis psikologis yang sangat mendalam (deep dive), naratif, dan membumi.
+
+GAYA PENULISAN (WAJIB DIPATUHI):
+1. **DEEP NARRATIVE**: Anda DILARANG KERAS menggunakan Bullet Points atau Numbering. Tulislah dalam bentuk esai/artikel panjang yang mengalir seperti laporan Harvard Business Review.
+2. **STRUKTUR 4 PARAGRAF**: Setiap sub-topik (## Judul) WAJIB dibahas dalam MINIMAL 4 PARAGRAF PENUH.
+   - Paragraf 1: **Fenomena/Masalah** (Apa yang terlihat di permukaan/perilaku).
+   - Paragraf 2: **Analisis Teknis** (Mengapa chart berkata demikian? Jelaskan aspek planetnya).
+   - Paragraf 3: **Dampak Nyata** (Skenario spesifik di karier/asmara/keuangan).
+   - Paragraf 4: **Solusi/Mitigasi** (Langkah strategis konkret untuk mengatasi hal ini).
+3. **BAHASA PROFESIONAL & LUGAS**: Gunakan bahasa Indonesia yang baku, otoritatif, dan langsung pada inti masalah. 
+   - HINDARI metafora berbunga-bunga (seperti "rembulan memeluk malam").
+   - GANTI dengan analisis tajam (seperti "Posisi Moon yang lemah menyebabkan ketidakstabilan emosi").
+4. **NO FLUFF**: Jangan mengulang kalimat. Setiap kalimat harus memberikan insight baru.
+
+TUJUAN: Klien harus merasa seperti sedang membaca bedah kasus psikologis tentang diri mereka sendiri, bukan ramalan zodiak umum.
+`;
+
+// --- 2. PROMPT BARU (MEMAKSA PENJELASAN PANJANG & NAMA KLIEN) ---
+const getConsolidatedSections = (dateContext: string, clientName: string) => [
   {
     id: 'BATCH_1_FOUNDATION',
-    title: 'BATCH 1: FONDASI & PSIKOLOGI',
+    title: 'BATCH 1: PSIKOLOGI MENDALAM',
     isFirstBatch: true, 
     prompt: `
-    TULIS 3 BAB PERTAMA.
-    
-    ## BAB 1: SURAT DARI SEMESTA (Introduction)
-    - Sapa ${clientName} dengan hangat namun serius layaknya mentor.
-    - Jelaskan mengapa chart mereka unik.
-    - Disclaimer: Jelaskan bedanya chart ini dengan zodiak majalah (Western vs Vedic) dengan bahasa sederhana.
-    - **PENTING**: Gunakan nada bicara yang personal, bukan seperti mesin.
-    
-    ## BAB 2: TOPENG & WAJAH ASLI (Psychological Profile)
-    - Analisis Lagna (Ascendant) sebagai "Wajah yang Anda tunjukkan pada dunia" vs Rasi (Moon) sebagai "Siapa Anda saat sendirian di kamar".
-    - Jelaskan konflik batin yang sering mereka rasakan berdasarkan posisi ini.
-    - Gunakan analogi (contoh: "Lagna Anda seperti pakaian yang Anda kenakan, tapi Moon adalah kulit Anda").
-    
-    ## BAB 3: INVENTARIS KEKUATAN & BAYANGAN (SWOT Analysis)
-    - Terjemahkan Shadbala menjadi "Inventory Senjata". Apa senjata terkuat mereka?
-    - **Shadow Work (Kejujuran Brutal)**: Jelaskan sisi gelap/kelemahan mereka dengan jujur. Berikan contoh perilaku nyata yang mungkin sering mereka lakukan tanpa sadar (self-sabotage) akibat posisi planet buruk. 
-    - *Ingat*: Jangan hanya memuji. Tunjukkan lubang di kapal mereka agar mereka bisa menambalnya.
+    ANALISIS BAGIAN 1: FONDASI KARAKTER (MODE: NARASI PENUH).
+    Klien bernama: ${clientName}. Panggil nama klien sesekali dalam narasi agar personal.
+
+    ## BAB 1: TOPENG VS REALITA (ASCENDANT & MOON)
+    (Tulis minimal 4 Paragraf)
+    Jelaskan kesenjangan antara bagaimana dunia melihat ${clientName} (Lagna) dan siapa ${clientName} sebenarnya di dalam (Moon). 
+    Analisis konflik batin apa yang muncul dari perbedaan ini? Apakah mereka sering merasa salah dimengerti? Berikan contoh situasi sosial nyata.
+
+    ## BAB 2: MEKANISME LOGIKA & PENGAMBILAN KEPUTUSAN
+    (Tulis minimal 4 Paragraf)
+    Bedah posisi Mercury dan Planet di Kepala (House 1/5/9). 
+    Bagaimana cara ${clientName} memproses informasi saat tertekan? Apakah impulsif, overthinking, atau denial? Jelaskan mekanisme astrologisnya dan dampaknya pada keputusan karir mereka.
+
+    ## BAB 3: BAYANGAN DIRI & SELF-SABOTAGE
+    (Tulis minimal 4 Paragraf)
+    Identifikasi "Shadow Self" atau kelemahan fatal yang sering tidak disadari klien (berdasarkan planet yang debilitated atau aspek sulit).
+    Ceritakan sebuah narasi tentang pola kegagalan berulang yang mungkin dialami klien akibat sifat ini. Berikan strategi psikologis untuk mematahkan pola ini.
     `
   },
   {
     id: 'BATCH_2_PATH_CAREER',
-    title: 'BATCH 2: NAVIGASI HIDUP & KARIER',
+    title: 'BATCH 2: KARIER & KEUANGAN',
     isFirstBatch: false,
     prompt: `
-    TULIS 3 BAB BERIKUTNYA (BAB 4-6).
-    **ATURAN KERAS**: JANGAN MENYAPA KLIEN LAGI. JANGAN ADA KATA PENGANTAR (seperti "Berikut adalah...", "Baiklah...").
-    LANGSUNG MULAI DENGAN HEADING "## BAB 4...".
+    ANALISIS BAGIAN 2: STRATEGI PROFESIONAL.
+    Ingat: Minimal 4 Paragraf per Bab. Jangan pakai Poin-poin.
 
-    ## BAB 4: GPS KEHIDUPAN SAAT INI (Dasha Analysis)
-    - Anda sedang membaca "Jam Kosmik" klien. Periode Dasha apa yang sedang aktif sekarang? (${dateContext})
-    - Apakah ini fase menanam, fase merawat, atau fase memanen? Jelaskan dengan analogi musim.
-    - Gunakan **TANGGAL SPESIFIK** (misal: "Antara 12 Oktober - 15 Desember 2025").
+    ## BAB 4: DIAGNOSA SITUASI SAAT INI (DASHA/TRANSIT)
+    (Tulis minimal 4 Paragraf)
+    Analisis periode waktu ${clientName} saat ini (${dateContext}).
+    Apakah ini fase untuk menyerang (ekspansi) atau bertahan (konsolidasi)? Jelaskan "tema besar" dari babak kehidupan ini secara mendetail, bukan hanya tanggal.
 
-    ## BAB 5: MOMEN EMAS & LAMPU MERAH (Timing Presisi)
-    - Gunakan KP Astrology untuk mencari tanggal spesifik kejadian penting.
-    - Berikan "Jendela Waktu" konkret. Misal: "Hindari tanda tangan kontrak besar di minggu ke-2 ${dateContext}."
+    ## BAB 5: PROFIL KARIER & POTENSI SUKSES
+    (Tulis minimal 4 Paragraf)
+    Berdasarkan House 10, 6, dan 11, analisis jalur karier terbaik untuk ${clientName}.
+    Bandingkan kecocokan menjadi Pengusaha vs Profesional Korporat. Berikan argumen logis yang panjang mengapa satu jalur lebih menguntungkan daripada yang lain bagi chart spesifik ini.
 
-    ## BAB 6: STRATEGI KARIER & KEKAYAAN
-    - Lihat House 2, 6, 10, 11.
-    - Jawab pertanyaan: Apakah klien cocok jadi Pengusaha (Risk Taker) atau Profesional (Structure Oriented)?
-    - Di mana "Kebocoran Finansial" mereka biasanya terjadi? (Misal: belanja impulsif, terlalu baik meminjamkan uang, dll).
-    - Berikan strategi: "Gas pol" di area mana, dan "Rem mendadak" di area mana.
+    ## BAB 6: ANALISIS KEBOCORAN KEUANGAN
+    (Tulis minimal 4 Paragraf)
+    Di mana letak kelemahan finansial ${clientName}? (House 2 & 12).
+    Apakah masalahnya di pemasukan yang tidak stabil atau pengeluaran impulsif? Ceritakan skenario nyata bagaimana uang biasanya "hilang" dari tangan mereka dan berikan solusi manajemen aset yang praktis.
     `
   },
   {
     id: 'BATCH_3_RELATIONSHIP_HEALTH',
-    title: 'BATCH 3: CINTA & VITALITAS',
+    title: 'BATCH 3: HUBUNGAN & KESEHATAN',
     isFirstBatch: false,
     prompt: `
-    TULIS 3 BAB BERIKUTNYA (BAB 7-9).
-    **ATURAN KERAS**: JANGAN MENYAPA. LANGSUNG MULAI DENGAN HEADING "## BAB 7...".
+    ANALISIS BAGIAN 3: KUALITAS HIDUP.
+    Tetap dalam format Narasi Esai Panjang.
 
-    ## BAB 7: DINAMIKA HATI & RELASI
-    - Bedah House 7 & Venus.
-    - Jangan gunakan istilah "House 7" terus menerus, ganti dengan "Sektor Kemitraan".
-    - Jika single: Kapan peluang bertemu? Karakter jodoh?
-    - Jika pasangan: Apa potensi konflik terbesar (Ego? Komunikasi? Uang?) dan solusinya.
+    ## BAB 7: DINAMIKA HUBUNGAN & PERNIKAHAN
+    (Tulis minimal 4 Paragraf)
+    Analisis sektor House 7. Tuliskan profil psikologis pasangan yang dibutuhkan ${clientName} untuk seimbang.
+    Jelaskan tantangan komunikasi terbesar yang akan selalu dihadapi klien dalam hubungan jangka panjang dan cara mematahkannya. Jangan berikan tips klise, berikan analisis perilaku.
 
-    ## BAB 8: SINYAL TUBUH & KESEHATAN
-    - Bedah House 6.
-    - Apa sinyal tubuh yang sering diabaikan klien? (Misal: masalah pencernaan karena stres, atau migrain karena overthinking).
-    - Solusi preventif berbasis elemen (Api/Air/Udara/Tanah).
+    ## BAB 8: SINYAL TUBUH & VITALITAS FISIK
+    (Tulis minimal 4 Paragraf)
+    Hubungkan kondisi mental ${clientName} dengan penyakit fisik (Medical Astrology).
+    Jika chart didominasi elemen Api, bahas masalah peradangan/lambung. Jika Angin, bahas kecemasan/saraf. Berikan saran gaya hidup preventif yang spesifik.
 
-    ## BAB 9: PETA KEBERUNTUNGAN (ASHTAKVARGA)
-    - Analisis skor Ashtakvarga.
-    - Identifikasi "Zona Emas" (Zodiak poin tinggi) vs "Zona Kering" (Zodiak poin rendah).
-    - Terjemahkan ini menjadi tindakan: "Bulan ini fokuslah pada [Area Zona Emas], dan jangan memaksakan diri di [Area Zona Kering]."
+    ## BAB 9: PETA NAVIGASI BULANAN (ASHTAKVARGA)
+    (Tulis minimal 4 Paragraf)
+    Tanpa tabel angka, terjemahkan skor kekuatan planet menjadi narasi strategi.
+    Sektor hidup mana yang sedang "Lampu Hijau" (Kejar target di sini) dan mana yang "Lampu Merah" (Hati-hati di sini) untuk bulan ini? Jelaskan alasannya.
     `
   },
   {
     id: 'BATCH_4_INNER_DYNAMICS',
-    title: 'BATCH 4: JIWA & SPIRITUALITAS',
+    title: 'BATCH 4: SOLUSI & MISI JIWA',
     isFirstBatch: false,
     prompt: `
-    TULIS 3 BAB BERIKUTNYA (BAB 10-12).
-    **ATURAN KERAS**: JANGAN MENYAPA. LANGSUNG MULAI DENGAN HEADING "## BAB 10...".
+    ANALISIS BAGIAN 4: SOLUSI STRATEGIS.
+    
+    ## BAB 10: MISI JIWA & OBSESI (RAHU/KETU)
+    (Tulis minimal 4 Paragraf)
+    Apa "rasa lapar" terbesar yang dirasakan jiwa ${clientName} di kehidupan ini?
+    Jelaskan area kehidupan di mana mereka sering merasa tidak pernah cukup (Rahu) dan area di mana mereka harus belajar melepaskan (Ketu).
 
-    ## BAB 10: PERANG & DAMAI DALAM DIRI
-    - Friendship Table: Planet mana yang "berperang" dalam diri klien?
-    - Bagaimana konflik internal ini memengaruhi keputusan hidup? (Misal: Hati ingin seni, tapi Logika ingin uang).
-
-    ## BAB 11: MISI JIWA (DHARMA)
-    - Analisis House 9, 12, Ketu & Jupiter.
-    - Apa "Hutang Karma" atau misi jiwa yang harus dibayar di hidup ini?
-    - Mengapa jiwa mereka memilih lahir di badan ini?
-
-    ## BAB 12: PRESKRIPSI PERBAIKAN NASIB
-    - Berikan solusi praktis: Warna keberuntungan, Batu mulia (Gemstone) jika perlu.
-    - **LARANGAN**: JANGAN BERIKAN MANTRA AGAMA.
-    - Gantilah dengan "Tindakan Nyata" atau "Charity". Misal: "Untuk menenangkan Saturnus, sering-seringlah berdonasi ke panti jompo atau membantu orang tua."
+    ## BAB 11: PRESKRIPSI PERUBAHAN NASIB (REMEDIES)
+    (Tulis minimal 4 Paragraf)
+    Berikan satu strategi besar (Remedy) yang bersifat perilaku/kebiasaan (Habit).
+    Jelaskan secara rinci *mengapa* tindakan kecil ini (misal: Puasa bicara tiap senin, atau Berdonasi ke yayasan buta) bisa mengubah nasib mereka secara drastis secara energi. Buat argumen yang sangat meyakinkan.
+    
+    ## BAB 12: MANIFESTO KEKUATAN
+    (Tulis minimal 4 Paragraf)
+    Tuliskan sebuah narasi penguatan mental untuk ${clientName}.
+    Gabungkan semua kekuatan terbaik di chart klien menjadi satu esai motivasi yang berbasis fakta kekuatan planet mereka.
     `
   },
   {
     id: 'BATCH_5_CONCLUSION',
-    title: 'BATCH 5: RANGKUMAN & PENUTUP',
+    title: 'BATCH 5: KESIMPULAN',
     isFirstBatch: false,
     prompt: `
-    TULIS 3 BAB TERAKHIR (BAB 13-15).
-    **ATURAN KERAS**: JANGAN MENYAPA. LANGSUNG MULAI DENGAN HEADING "## BAB 13...".
+    ANALISIS BAGIAN 5: PENUTUP.
 
-    ## BAB 13: RAMALAN CUACA KOSMIK (${dateContext})
-    - Buatlah Tabel Prediksi Sederhana untuk bulan ini.
-    - Apa satu hal yang HARUS dilakukan dan satu hal yang HARUS dihindari bulan ini?
+    ## BAB 13: FORECAST 30 HARI KE DEPAN
+    (Tulis minimal 4 Paragraf)
+    Buatlah alur cerita naratif tentang apa yang akan dihadapi ${clientName} bulan ini.
+    Bagi menjadi: Awal bulan, Pertengahan, dan Akhir bulan. Apa fokus utama di setiap fase?
 
-    ## BAB 14: PERSIAPAN SIKLUS BESAR
-    - Apakah ada transisi besar mendekat (Sade Sati, Pergantian Mahadasha)?
-    - Bagaimana mempersiapkan mental untuk ini?
-    - Gunakan analogi: "Bersiaplah menghadapi musim dingin" atau "Siapkan layar untuk angin kencang".
-
-    ## BAB 15: PESAN TERAKHIR NATALIE
-    - Rangkuman eksekutif dari seluruh analisis.
-    - Kalimat penutup yang sangat kuat tentang Free Will.
-    - Di akhir, buatlah blok kutipan (> Blockquote) berjudul **"NATALIE'S NOTE"** yang berisi 1 nasihat paling krusial untuk hidup mereka saat ini.
+    ## BAB 14: PESAN TERAKHIR NATALIE
+    (Tulis minimal 4 Paragraf)
+    Rangkuman eksekutif dari seluruh analisis di atas.
+    Tutup dengan satu paragraf berisi "The One Thing": Satu tindakan paling krusial yang harus ${clientName} lakukan detik ini juga untuk merubah hidupnya ke arah positif. Sampaikan dengan tegas.
     `
   }
 ];
@@ -182,28 +197,9 @@ export const generateReport = async (
 
   const contextDate = formatDate(data.analysisDate);
   
-  // Extract generic name or try to find it in text, default to "Sahabat"
-  const clientName = "Sahabat"; 
-
-  // System Instruction: Updated for "Translator" Persona & Hand-crafted feel
-  const SYSTEM_INSTRUCTION = `
-PERAN: Anda adalah Natalie Lau, Konsultan Kosmografi Senior.
-VISI: Menerjemahkan bahasa langit (Astrologi Veda/KP) menjadi strategi hidup yang praktis.
-
-GAYA BICARA & TONE:
-1. **Personal & Intim**: Bicara langsung pada klien ("Anda", sebut nama klien sesekali). Jangan bicara seperti buku teks.
-2. **THE TRANSLATOR RULE**: Setiap kali Anda menyebutkan istilah teknis (misal: "Rahu di House 12" atau "Sade Sati"), Anda WAJIB langsung menjelaskan analoginya di dunia nyata.
-   - *JANGAN TULIS*: "Saturnus Anda lemah di Shadbala."
-   - *TULISLAH*: "Saturnus Anda memiliki energi yang rendah. Ini ibarat Anda memiliki mobil bagus tapi bensinnya sering kosong saat dibutuhkan..."
-3. **Brutal tapi Empatik**: Katakan kebenaran pahit dengan elegan. Jangan sugar-coating, tapi berikan solusi mitigasi.
-4. **Storytelling Flow**: Gunakan kalimat penghubung yang mengalir. Hindari format "Listicle" (poin-poin) yang berlebihan kecuali untuk data singkat.
-
-FORMATTING:
-- Gunakan Markdown yang bersih.
-- Gunakan **Bold** untuk poin penting.
-- Gunakan > Blockquote untuk "Nasihat Kunci" atau "Mantra Psikologis".
-- Gunakan Tabel untuk data tanggal/prediksi jika memungkinkan.
-`;
+  // --- 3. AMBIL NAMA KLIEN DARI DATA (JANGAN HARDCODE SAHABAT) ---
+  // Pastikan Types.ts dan InputSection.tsx sudah diupdate untuk menerima 'clientName'
+  const clientName = data.clientName || "Sahabat"; 
 
   const sections = getConsolidatedSections(contextDate, clientName);
   const BATCH_SIZE = 1; 
@@ -214,24 +210,23 @@ FORMATTING:
     for (const section of batch) {
        onStatusUpdate(`Menulis ${section.title}... (${model === 'gemini-3-pro-preview' ? 'Deep Analysis' : 'Fast Analysis'})`);
        
-       // Construct Prompt based on position
        let promptPrefix = "";
        if (!section.isFirstBatch) {
          promptPrefix = `
          [INSTRUKSI KHUSUS: INI ADALAH LANJUTAN DARI BAGIAN SEBELUMNYA]
-         1. JANGAN menyapa klien lagi.
-         2. JANGAN membuat kata pengantar (Intro) seperti "Berikut adalah...".
+         1. Tetap gunakan gaya NARASI PANJANG (4 Paragraf).
+         2. JANGAN membuat kata pengantar (Intro).
          3. LANGSUNG mulai output Anda dengan karakter "##" (Judul Bab).
          4. Jaga alur cerita tetap menyambung.
          `;
        }
 
-       // IMPORTANT: Inject Context into every prompt so the AI doesn't "forget"
        const reminderContext = `
-       [PENGINGAT KONTEKS PENTING]
-       Keresahan utama klien adalah: "${data.concerns || 'Ingin tahu potensi terbaik dan terburuk diri'}".
-       Pastikan bab ini secara spesifik menjawab atau menyenggol keresahan tersebut. Jangan berikan nasihat general (copy-paste).
-       Gunakan data dari file/text input untuk personalisasi.
+       [KONTEKS KLIEN]
+       Nama: ${clientName}
+       Keresahan Utama: "${data.concerns || 'Ingin tahu potensi terbaik dan terburuk diri'}"
+       
+       Ingat: Jawaban harus NARATIF, LUGAS, dan MENDALAM. Jangan gunakan poin-poin.
        `;
 
        const prompt = `
@@ -249,48 +244,62 @@ FORMATTING:
 
        const parts = [{ text: prompt }, ...processedFiles];
 
-       try {
-         const responseStream = await ai.models.generateContentStream({
-           model: model, 
-           contents: { role: 'user', parts: parts },
-           config: {
-             systemInstruction: SYSTEM_INSTRUCTION,
-             temperature: 0.7,
-             maxOutputTokens: 8192,
-           }
-         });
- 
-         let sectionUsageInput = 0;
-         let sectionUsageOutput = 0;
-         let chunkText = "";
- 
-         for await (const chunk of responseStream) {
-           const text = chunk.text;
-           if (text) {
-             chunkText += text;
-             
-             // Live update logic
-             const displayContent = accumulatedReport 
-               ? accumulatedReport + "\n\n" + chunkText 
-               : chunkText;
-             onStream(displayContent);
-           }
-           if (chunk.usageMetadata) {
-              sectionUsageInput = chunk.usageMetadata.promptTokenCount;
-              sectionUsageOutput = chunk.usageMetadata.candidatesTokenCount;
-           }
-         }
-         updateUsage(sectionUsageInput, sectionUsageOutput);
-         
-         // Final concatenation for the next loop
-         if (accumulatedReport) accumulatedReport += "\n\n";
-         accumulatedReport += chunkText;
-         onStream(accumulatedReport);
+       // --- 4. RETRY MECHANISM YANG SUDAH KAMU BUAT (SUDAH BENAR) ---
+       let retryCount = 0;
+       const maxRetries = 3;
+       let sectionSuccess = false;
 
-       } catch (error) {
-         console.error(`Error in section ${section.id}:`, error);
-         accumulatedReport += `\n\n[Maaf, koneksi terputus di bagian ini. Silakan generate ulang...]\n\n`;
-         onStream(accumulatedReport);
+       while (!sectionSuccess && retryCount < maxRetries) {
+         try {
+            const responseStream = await ai.models.generateContentStream({
+              model: model, 
+              contents: { role: 'user', parts: parts },
+              config: {
+                systemInstruction: SYSTEM_INSTRUCTION,
+                temperature: 0.7,
+                maxOutputTokens: 8192,
+              }
+            });
+    
+            let sectionUsageInput = 0;
+            let sectionUsageOutput = 0;
+            let chunkText = "";
+    
+            for await (const chunk of responseStream) {
+              const text = chunk.text;
+              if (text) {
+                chunkText += text;
+                const displayContent = accumulatedReport 
+                  ? accumulatedReport + "\n\n" + chunkText 
+                  : chunkText;
+                onStream(displayContent);
+              }
+              if (chunk.usageMetadata) {
+                 sectionUsageInput = chunk.usageMetadata.promptTokenCount;
+                 sectionUsageOutput = chunk.usageMetadata.candidatesTokenCount;
+              }
+            }
+            updateUsage(sectionUsageInput, sectionUsageOutput);
+            
+            if (accumulatedReport) accumulatedReport += "\n\n";
+            accumulatedReport += chunkText;
+            onStream(accumulatedReport);
+            sectionSuccess = true;
+
+         } catch (error: any) {
+            console.error(`Error in section ${section.id}, attempt ${retryCount + 1}:`, error);
+            retryCount++;
+            
+            if (retryCount < maxRetries) {
+               onStatusUpdate(`Koneksi terganggu (${error.status || '500'}). Mencoba ulang ${section.title} (${retryCount}/${maxRetries})...`);
+               await wait(2000 * retryCount); 
+            } else {
+               const errorMessage = `\n\n> **SYSTEM NOTE**: Bagian ini (${section.title}) gagal dimuat setelah 3x percobaan. Error: ${error.message || 'Unknown Network Error'}. Lanjut ke bagian berikutnya.\n\n`;
+               accumulatedReport += errorMessage;
+               onStream(accumulatedReport);
+               sectionSuccess = true; 
+            }
+         }
        }
     }
   }
