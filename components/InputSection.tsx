@@ -7,6 +7,7 @@ interface InputSectionProps {
 }
 
 const InputSection: React.FC<InputSectionProps> = ({ onSubmit, isLoading }) => {
+  const [clientName, setClientName] = useState('');
   const [rawText, setRawText] = useState('');
   const [concerns, setConcerns] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -21,11 +22,15 @@ const InputSection: React.FC<InputSectionProps> = ({ onSubmit, isLoading }) => {
   };
 
   const handleSubmit = () => {
+    if (!clientName.trim()) {
+      alert("Mohon masukkan Nama Klien agar analisis lebih personal.");
+      return;
+    }
     if (!rawText && files.length === 0) {
       alert("Mohon masukkan data teks atau upload gambar/PDF chart.");
       return;
     }
-    onSubmit({ rawText, concerns, files, analysisDate, selectedModel });
+    onSubmit({ clientName, rawText, concerns, files, analysisDate, selectedModel });
   };
 
   return (
@@ -37,6 +42,18 @@ const InputSection: React.FC<InputSectionProps> = ({ onSubmit, isLoading }) => {
 
       <div className="space-y-8">
         
+        {/* Nama Klien Input */}
+        <div>
+          <label className="block font-cinzel text-gold-dim mb-2 text-sm tracking-widest">Nama Lengkap</label>
+          <input 
+            type="text" 
+            value={clientName}
+            onChange={(e) => setClientName(e.target.value)}
+            placeholder="Contoh: Budi Santoso"
+            className="w-full bg-black/40 border border-gold/20 rounded p-4 text-parchment font-cinzel text-lg focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold placeholder-gray-600"
+          />
+        </div>
+
         {/* Context Date Selection & Model Selection */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
              {/* File Upload */}

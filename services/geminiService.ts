@@ -16,40 +16,19 @@ const formatDate = (dateString: string) => {
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// --- 1. SYSTEM INSTRUCTION BARU (OTAK ANALIS, BUKAN PENYAIR) ---
-const SYSTEM_INSTRUCTION = `
-PERAN: Anda adalah Natalie Lau, Konsultan Strategi Astrologi Senior.
-VISI: Menyajikan laporan analisis psikologis yang sangat mendalam (deep dive), naratif, dan membumi.
-
-GAYA PENULISAN (WAJIB DIPATUHI):
-1. **DEEP NARRATIVE**: Anda DILARANG KERAS menggunakan Bullet Points atau Numbering. Tulislah dalam bentuk esai/artikel panjang yang mengalir seperti laporan Harvard Business Review.
-2. **STRUKTUR 4 PARAGRAF**: Setiap sub-topik (## Judul) WAJIB dibahas dalam MINIMAL 4 PARAGRAF PENUH.
-   - Paragraf 1: **Fenomena/Masalah** (Apa yang terlihat di permukaan/perilaku).
-   - Paragraf 2: **Analisis Teknis** (Mengapa chart berkata demikian? Jelaskan aspek planetnya).
-   - Paragraf 3: **Dampak Nyata** (Skenario spesifik di karier/asmara/keuangan).
-   - Paragraf 4: **Solusi/Mitigasi** (Langkah strategis konkret untuk mengatasi hal ini).
-3. **BAHASA PROFESIONAL & LUGAS**: Gunakan bahasa Indonesia yang baku, otoritatif, dan langsung pada inti masalah. 
-   - HINDARI metafora berbunga-bunga (seperti "rembulan memeluk malam").
-   - GANTI dengan analisis tajam (seperti "Posisi Moon yang lemah menyebabkan ketidakstabilan emosi").
-4. **NO FLUFF**: Jangan mengulang kalimat. Setiap kalimat harus memberikan insight baru.
-
-TUJUAN: Klien harus merasa seperti sedang membaca bedah kasus psikologis tentang diri mereka sendiri, bukan ramalan zodiak umum.
-`;
-
-// --- 2. PROMPT BARU (MEMAKSA PENJELASAN PANJANG & NAMA KLIEN) ---
+// --- PROMPTS ---
 const getConsolidatedSections = (dateContext: string, clientName: string) => [
   {
     id: 'BATCH_1_FOUNDATION',
     title: 'BATCH 1: PSIKOLOGI MENDALAM',
     isFirstBatch: true, 
     prompt: `
-    ANALISIS BAGIAN 1: FONDASI KARAKTER (MODE: NARASI PENUH).
-    Klien bernama: ${clientName}. Panggil nama klien sesekali dalam narasi agar personal.
-
-    ## BAB 1: TOPENG VS REALITA (ASCENDANT & MOON)
-    (Tulis minimal 4 Paragraf)
-    Jelaskan kesenjangan antara bagaimana dunia melihat ${clientName} (Lagna) dan siapa ${clientName} sebenarnya di dalam (Moon). 
-    Analisis konflik batin apa yang muncul dari perbedaan ini? Apakah mereka sering merasa salah dimengerti? Berikan contoh situasi sosial nyata.
+    TULIS ESAI ANALISIS MENDALAM.
+    
+    ## BAB 1: REFLEKSI DIRI (TOPENG VS REALITA)
+    Mulai dengan kalimat pembuka yang menyentuh hati khusus untuk ${clientName}.
+    Jelaskan kesenjangan antara Lagna (Wajah Luar) dan Moon (Hati Dalam).
+    Ceritakan narasi tentang bagaimana ${clientName} sering merasa lelah harus berpura-pura kuat (atau sifat lain sesuai chart) padahal hatinya berbeda. Buat mereka merasa "Wah, kok Natalie tau?".
 
     ## BAB 2: MEKANISME LOGIKA & PENGAMBILAN KEPUTUSAN
     (Tulis minimal 4 Paragraf)
@@ -196,10 +175,25 @@ export const generateReport = async (
   }
 
   const contextDate = formatDate(data.analysisDate);
-  
-  // --- 3. AMBIL NAMA KLIEN DARI DATA (JANGAN HARDCODE SAHABAT) ---
-  // Pastikan Types.ts dan InputSection.tsx sudah diupdate untuk menerima 'clientName'
   const clientName = data.clientName || "Sahabat"; 
+
+  // --- SYSTEM INSTRUCTION BARU (WARM AUTHORITY) ---
+  const SYSTEM_INSTRUCTION = `
+PERAN: Anda adalah Natalie Lau, Konsultan Strategi Astrologi Senior.
+KARAKTER: Cerdas, Empatik, Elegan, namun Tegas pada Data.
+VISI: Membuat klien merasa "Dilihat" dan "Dipahami" secara mendalam.
+
+GAYA BICARA (TONE):
+1. **SAPAAN PERSONAL**: Panggil klien dengan nama "${clientName}" secara natural (jangan terlalu sering, tapi di momen penting). JANGAN panggil "Sahabat".
+2. **DEEP NARRATIVE**: Tulis seperti esai psikologi yang mengalir. Hindari bullet points (kecuali sangat perlu).
+3. **WARM AUTHORITY**: Gunakan bahasa yang otoritatif (sebagai ahli) tapi tetap hangat (sebagai mentor). 
+   - *Kaku (Salah)*: "Berdasarkan analisis House 1, Anda pemarah."
+   - *Luwes (Benar)*: "Posisi Mars di House 1 Anda memberikan energi api yang luar biasa, ${clientName}. Ini membuat Anda punya dorongan kuat, namun seringkali disalahartikan orang sebagai kemarahan."
+4. **NO ROBOTIC JARGON**: Hindari kata "Berikut adalah", "Analisis saya menunjukkan". Langsung masuk ke inti cerita.
+
+STRUKTUR:
+Setiap bab harus memiliki kedalaman (minimal 3-4 paragraf) yang menjelaskan "WHY" (Kenapa begini) dan "HOW" (Solusinya).
+`;
 
   const sections = getConsolidatedSections(contextDate, clientName);
   const BATCH_SIZE = 1; 
@@ -244,7 +238,7 @@ export const generateReport = async (
 
        const parts = [{ text: prompt }, ...processedFiles];
 
-       // --- 4. RETRY MECHANISM YANG SUDAH KAMU BUAT (SUDAH BENAR) ---
+       // --- RETRY MECHANISM ---
        let retryCount = 0;
        const maxRetries = 3;
        let sectionSuccess = false;

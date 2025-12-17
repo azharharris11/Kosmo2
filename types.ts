@@ -1,4 +1,5 @@
 export interface ClientData {
+  clientName: string;
   rawText: string;
   files: File[];
   concerns: string;
