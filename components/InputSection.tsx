@@ -9,7 +9,6 @@ interface InputSectionProps {
 
 const InputSection: React.FC<InputSectionProps> = ({ onStartBatch, isLoading }) => {
   const [analysisDate, setAnalysisDate] = useState(new Date().toISOString().slice(0, 7));
-  // Defaulting to Gemini 3 Flash Preview
   const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-3-flash-preview' | 'gemini-3-pro-preview'>('gemini-3-flash-preview');
   const [queue, setQueue] = useState<ClientData[]>([]);
   const [manualName, setManualName] = useState('');
@@ -58,7 +57,7 @@ const InputSection: React.FC<InputSectionProps> = ({ onStartBatch, isLoading }) 
       <div className="flex-1 p-8 bg-midnight/50 border border-gold/30 rounded-lg backdrop-blur-sm shadow-2xl h-fit">
         <div className="text-center mb-8">
           <h2 className="font-cinzel text-2xl text-gold mb-2">Natalie's Workspace</h2>
-          <p className="font-serif italic text-gray-400 text-sm">Upload banyak file sekaligus. Edit keresahan klien di kolom kanan agar Natalie bisa memberi solusi yang personal.</p>
+          <p className="font-serif italic text-gray-400 text-sm">Setiap klien akan mendapatkan 15 bab analisis mendalam (Full Houses + Dasha).</p>
         </div>
 
         <div className="space-y-6">
@@ -72,7 +71,7 @@ const InputSection: React.FC<InputSectionProps> = ({ onStartBatch, isLoading }) 
               <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value as any)} className="w-full bg-black/40 border border-gold/20 rounded p-2 text-gold font-cinzel text-xs">
                 <option value="gemini-3-flash-preview">Balanced (V3 Flash - Default)</option>
                 <option value="gemini-2.5-flash">Standard (V2.5 Flash - Ekonomis)</option>
-                <option value="gemini-3-pro-preview">Premium (V3 Pro - Detail & Paling Cerdas)</option>
+                <option value="gemini-3-pro-preview">Premium (V3 Pro - Paling Detail)</option>
               </select>
             </div>
           </div>
@@ -82,14 +81,14 @@ const InputSection: React.FC<InputSectionProps> = ({ onStartBatch, isLoading }) 
             <div className="flex flex-col items-center pointer-events-none">
               <span className="text-5xl text-gold mb-3 group-hover:scale-110 transition-transform">✦</span>
               <span className="font-cinzel font-bold text-gold text-xl">BATCH UPLOAD CHARTS</span>
-              <span className="text-xs font-serif text-gray-500 mt-2">Seret banyak file ke sini untuk antrian otomatis</span>
+              <span className="text-xs font-serif text-gray-500 mt-2">Seret banyak file ke sini</span>
             </div>
           </div>
 
           <div className="space-y-4 opacity-50 hover:opacity-100 transition-opacity">
             <input type="text" value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="Atau ketik nama klien..." className="w-full bg-black/40 border border-gold/20 rounded p-3 text-parchment font-cinzel text-sm" />
             <textarea value={manualText} onChange={(e) => setManualText(e.target.value)} placeholder="Paste data planet manual..." className="w-full h-16 bg-black/40 border border-gold/20 rounded p-3 text-parchment font-mono text-xs" />
-            <button onClick={handleAddManual} className="w-full py-2 border border-gold/40 text-gold-dim font-cinzel hover:bg-gold hover:text-midnight transition-colors text-xs uppercase">+ Tambah ke Manifest</button>
+            <button onClick={handleAddManual} className="w-full py-2 border border-gold/40 text-gold-dim font-cinzel hover:bg-gold hover:text-midnight transition-colors text-xs uppercase">+ Tambah Manual</button>
           </div>
         </div>
       </div>
@@ -97,12 +96,12 @@ const InputSection: React.FC<InputSectionProps> = ({ onStartBatch, isLoading }) 
       <div className="w-full lg:w-1/3 bg-midnight/80 border border-gold/30 p-8 rounded-lg flex flex-col shadow-2xl">
          <div className="mb-6 border-b border-gold/20 pb-4">
             <h2 className="font-cinzel text-2xl text-gold">Manifest Klien</h2>
-            <p className="font-serif text-gray-500 text-sm italic">"Penting: Berikan konteks keresahan agar Natalie bisa bicara lebih dalam."</p>
+            <p className="font-serif text-gray-500 text-sm italic">Pastikan "Keresahan" sudah diisi agar Natalie bicara lebih tajam.</p>
          </div>
 
          <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar max-h-[600px]">
             {queue.length === 0 ? (
-              <div className="text-center text-gray-600 mt-20 italic font-serif">Antrian masih kosong...</div>
+              <div className="text-center text-gray-600 mt-20 italic font-serif">Manifest kosong...</div>
             ) : (
               queue.map((client, idx) => {
                 const isExpanded = expandedClientId === client.id;
@@ -119,16 +118,15 @@ const InputSection: React.FC<InputSectionProps> = ({ onStartBatch, isLoading }) 
                         <span className={`text-gold transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▾</span>
                      </div>
                      {isExpanded && (
-                       <div className="p-4 pt-0 bg-black/40 border-t border-gold/10 space-y-4 animate-fade-in-down">
+                       <div className="p-4 pt-0 bg-black/40 border-t border-gold/10 space-y-4">
                           <div className="mt-4">
-                            <label className="text-[10px] uppercase font-cinzel text-gold-dim block mb-1">Keresahan / Fokus Klien</label>
+                            <label className="text-[10px] uppercase font-cinzel text-gold-dim block mb-1">Keresahan / Fokus Masalah</label>
                             <textarea 
                               value={client.concerns} 
                               onChange={(e) => updateClientData(client.id, 'concerns', e.target.value)} 
-                              placeholder="Contoh: Dia bingung soal jodoh karena Mars retrograde..." 
+                              placeholder="Misal: Dia sedang bingung soal karier..." 
                               className="w-full h-32 bg-midnight border border-gold/20 rounded p-3 text-parchment font-serif text-sm focus:border-gold outline-none"
                             />
-                            <p className="text-[9px] text-gray-500 mt-1 italic">*Natalie akan merespon poin ini di seluruh bab.</p>
                           </div>
                           <div className="flex justify-between items-center">
                             <button onClick={() => setQueue(queue.filter(q => q.id !== client.id))} className="text-xs text-red-900 hover:text-red-500">Hapus</button>

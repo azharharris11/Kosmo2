@@ -1,5 +1,5 @@
+
 import React, { useState } from 'react';
-import { createRoot } from 'react-dom/client';
 import InputSection from './components/InputSection';
 import ReportView from './components/ReportView';
 import LoadingScreen from './components/LoadingScreen';
@@ -15,11 +15,9 @@ const App: React.FC = () => {
     batchItems: [],
   });
   
-  // State to view a single report from the batch list
   const [viewingClientId, setViewingClientId] = useState<string | null>(null);
 
   const handleStartBatch = async (queue: ClientData[]) => {
-    // Initialize batch items
     const initialBatchItems: BatchItem[] = queue.map(client => ({
       client,
       status: 'PENDING',
@@ -35,11 +33,9 @@ const App: React.FC = () => {
     });
     setStep(Step.GENERATING);
 
-    // Process Sequentially
     for (let i = 0; i < queue.length; i++) {
       const client = queue[i];
       
-      // Update status to processing
       setReportState(prev => ({
         ...prev,
         currentProcessingId: client.id,
@@ -53,7 +49,6 @@ const App: React.FC = () => {
         await generateReport(
           client,
           (chunkContent) => {
-            // Live update the specific client's content
             setReportState(prev => ({
               ...prev,
               batchItems: prev.batchItems.map(item => 
@@ -61,9 +56,7 @@ const App: React.FC = () => {
               )
             }));
           },
-          (statusUpdate) => {
-             // Optional: You can track specific status messages per client if needed
-          },
+          (statusUpdate) => {},
           (usage) => {
             setReportState(prev => ({
               ...prev,
@@ -73,8 +66,6 @@ const App: React.FC = () => {
             }));
           },
           (detectedName) => {
-             // NEW: When AI finds the name, update the client object in state
-             console.log("Name detected by AI:", detectedName);
              setReportState(prev => ({
                ...prev,
                batchItems: prev.batchItems.map(item => 
@@ -86,7 +77,6 @@ const App: React.FC = () => {
           }
         );
 
-        // Mark as completed
         setReportState(prev => ({
           ...prev,
           batchItems: prev.batchItems.map(item => 
@@ -107,7 +97,6 @@ const App: React.FC = () => {
       }
     }
 
-    // All done
     setReportState(prev => ({ ...prev, isLoading: false, isStreaming: false, currentProcessingId: null }));
     setStep(Step.RESULT_LIST);
   };
@@ -133,7 +122,6 @@ const App: React.FC = () => {
     setViewingClientId(null);
   };
 
-  // Helper to find currently viewing item
   const currentViewItem = reportState.batchItems.find(item => item.client.id === viewingClientId);
 
   return (
@@ -142,7 +130,6 @@ const App: React.FC = () => {
 
       <div className="relative z-10 container mx-auto px-4 py-8">
         
-        {/* HEADER */}
         {step !== Step.RESULT_VIEW && (
           <header className="text-center mb-10 pt-6">
             <h1 className="font-cinzel text-5xl md:text-6xl text-gold mb-2 tracking-widest drop-shadow-[0_0_15px_rgba(212,175,55,0.5)]">
@@ -155,14 +142,12 @@ const App: React.FC = () => {
         )}
 
         <main className="w-full">
-          {/* STEP 1: INPUT QUEUE */}
           {step === Step.INPUT && (
             <div className="animate-fade-in-up">
               <InputSection onStartBatch={handleStartBatch} isLoading={reportState.isLoading} />
             </div>
           )}
 
-          {/* STEP 2 & 3: PROCESSING & LIST */}
           {(step === Step.GENERATING || step === Step.RESULT_LIST) && (
             <div className="max-w-5xl mx-auto">
               
@@ -172,8 +157,8 @@ const App: React.FC = () => {
                    <div className="mt-4 font-cinzel text-gold text-xl animate-pulse">
                      Memproses: {reportState.batchItems.find(i => i.client.id === reportState.currentProcessingId)?.client.clientName}
                    </div>
-                   <p className="text-sm text-gray-500 mt-2 font-serif italic">
-                      "Sedang membaca pola bintang dan mencari nama..."
+                   <p className="text-sm text-gray-500 mt-2 font-serif italic italic text-xs">
+                      "Natalie sedang menyeimbangkan pola bintang untuk Anda..."
                    </p>
                  </div>
               )}
@@ -191,7 +176,6 @@ const App: React.FC = () => {
                     `}
                     onClick={() => item.status === 'COMPLETED' ? handleViewReport(item.client.id) : null}
                   >
-                    {/* Status Badge */}
                     <div className="absolute top-4 right-4">
                       {item.status === 'PENDING' && <span className="text-xs font-cinzel text-gray-500">Menunggu</span>}
                       {item.status === 'PROCESSING' && <span className="text-xs font-cinzel text-gold animate-pulse">Menulis...</span>}
@@ -201,7 +185,7 @@ const App: React.FC = () => {
 
                     <h3 className="font-cinzel text-xl text-parchment mb-1 truncate pr-4">{item.client.clientName}</h3>
                     <p className="text-xs font-serif text-gold-dim uppercase tracking-widest mb-4">
-                      {item.client.selectedModel === 'gemini-3-pro-preview' ? 'Deep Analysis' : 'Fast Analysis'}
+                      {item.client.selectedModel === 'gemini-3-pro-preview' ? 'Premium Tier' : item.client.selectedModel === 'gemini-3-flash-preview' ? 'Balanced Tier' : 'Standard Tier'}
                     </p>
 
                     {item.status === 'PROCESSING' && (
@@ -216,7 +200,7 @@ const App: React.FC = () => {
                              {(item.resultContent.length / 5).toFixed(0)} words
                           </div>
                           <button className="text-gold text-sm font-cinzel border-b border-gold hover:text-white">
-                             BUKA LAPORAN &rarr;
+                             BUKA &rarr;
                           </button>
                        </div>
                     )}
@@ -237,7 +221,6 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* STEP 4: SINGLE VIEW */}
           {step === Step.RESULT_VIEW && currentViewItem && (
              <div className="animate-fade-in-up">
                 <div className="no-print fixed top-6 left-6 z-50">
@@ -250,7 +233,7 @@ const App: React.FC = () => {
                 </div>
                 <ReportView 
                    content={currentViewItem.resultContent}
-                   onReset={() => {}} // Reset is handled by Back button in this mode
+                   onReset={() => {}} 
                    usage={currentViewItem.usage}
                    analysisDate={currentViewItem.client.analysisDate}
                 />
@@ -258,12 +241,6 @@ const App: React.FC = () => {
           )}
 
         </main>
-
-        {step !== Step.RESULT_VIEW && (
-          <footer className="no-print mt-20 text-center text-gray-600 font-cinzel text-xs pb-8">
-            &copy; 2025 Natalie Lau Cosmography. All rights reserved.
-          </footer>
-        )}
       </div>
     </div>
   );

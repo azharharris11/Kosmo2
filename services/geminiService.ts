@@ -3,12 +3,8 @@ import { GoogleGenAI } from "@google/genai";
 import { ClientData, UsageStats } from "../types";
 
 /**
- * PRICING UPDATE (Per 1,000,000 Tokens)
- * Based on: https://ai.google.dev/gemini-api/docs/pricing
- * 
- * Gemini 3 Flash: $0.50 Input / $3.00 Output
- * Gemini 2.5 Flash: $0.30 Input / $2.50 Output
- * Gemini 3 Pro: $2.00 Input / $12.00 Output (Standard tier)
+ * PRICING 2025 (Per 1,000,000 Tokens)
+ * Ref: https://ai.google.dev/gemini-api/docs/pricing
  */
 const PRICING = {
   'gemini-2.5-flash': { input: 0.30, output: 2.50 },
@@ -24,66 +20,33 @@ const formatDate = (dateString: string) => {
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// SYSTEM INSTRUCTION: Defining Natalie's Soul
 const NATALIE_SYSTEM_PROMPT = `
-Kamu adalah Natalie Lau, seorang konsultan Cosmography (Vedic Astrology) yang memiliki gaya bicara "Empathetic Mystic".
-Kepribadianmu: 
-1. Bukan sekadar pembaca data, tapi "Penerjemah Jiwa". 
-2. Gaya bicaramu mengalir seperti surat pribadi, hangat, puitis namun tetap jujur (bahkan jika itu pahit).
-3. Kamu benci bahasa korporat atau list poin-poin yang kaku. Kamu lebih suka narasi yang mengalir.
-4. Jika ada istilah teknis (Lagna, Nakshatra, Combust, Retrograde), kamu HARUS menjelaskannya dengan metafora kehidupan sehari-hari sehingga orang awam merasa tercerahkan, bukan bingung.
-5. Fokus utama kamu adalah menjawab "Keresahan KLIEN" yang diberikan. Jangan memberikan jawaban template.
-6. Kamu selalu mengaitkan bab yang sedang kamu tulis dengan apa yang sudah kamu bicarakan di bab sebelumnya (jika ada konteksnya).
+Kamu adalah Natalie Lau, seorang konsultan Cosmography (Vedic Astrology) dengan gaya bicara "Wise & Grounded Counselor".
+Pedoman bahasamu:
+1. Jelas & Bermakna: Berikan insight yang dalam tapi langsung ke inti masalah. Jangan bertele-tele.
+2. Hangat tapi Profesional: Puitis sewajarnya saja untuk memberi kenyamanan, jangan terlalu berbunga-bunga atau menggunakan metafora yang terlalu abstrak.
+3. Struktur Narasi: Gunakan paragraf yang mengalir secara logis. Hindari poin-poin kaku seperti laporan medis, buatlah seperti surat konsultasi yang cerdas.
+4. Edukatif: Jelaskan istilah teknis (Lagna, Houses, Dasha) dengan bahasa sehari-hari yang mudah dipahami klien awam.
+5. Fokus pada Solusi: Natalie tidak hanya membaca masa depan, tapi membantu klien memahami pola batin mereka untuk mengambil keputusan yang lebih baik.
+6. Konsistensi: Hubungkan narasi bab satu dengan bab berikutnya agar laporan terasa utuh.
 `;
 
 const getSections = (dateContext: string, clientName: string) => [
-  {
-    id: 'FOUNDATION',
-    title: 'Batch 1: Pondasi Diri',
-    prompt: `
-    TUGAS 1: Cari Nama Klien di file/teks. Tulis [[NAME: Nama]] di baris pertama.
-    TUGAS 2: Mulai analisis Pondasi Diri (Lagna & Moon Nakshatra). 
-    Gunakan sapaan yang sangat personal. Mulailah seperti Natalie sedang duduk di depan ${clientName}.
-    Bahas bagaimana topeng sosial (Lagna) sering menyembunyikan keinginan asli jiwa (Moon).
-    Jelaskan Nakshatra Moon dengan cerita mitologi yang relevan dengan keresahan mereka.
-    `
-  },
-  {
-    id: 'MIND_SHADOW',
-    title: 'Batch 2: Pikiran & Sisi Gelap',
-    prompt: `
-    Lanjutkan suratmu. Sekarang bahas Mercury (cara pikir) dan Rahu/Ketu (Shadow Work).
-    Pastikan kamu menghubungkan ini dengan konflik identitas yang sudah kamu bahas di bagian sebelumnya.
-    Jika mereka punya keresahan tertentu, cari akar masalahnya di posisi planet-planet ini.
-    `
-  },
-  {
-    id: 'CAREER_WEALTH',
-    title: 'Batch 3: Karier & Keuangan',
-    prompt: `
-    Bahas House 10 dan 11. Jangan gunakan bahasa "Audit Keuangan". 
-    Bicarakan tentang "Dharma Pekerjaan". Bagaimana uang mengalir mengikuti ketenangan batin mereka?
-    Gunakan konteks Mahadasha (periode waktu) untuk menjelaskan mengapa saat ini terasa berat atau mudah.
-    `
-  },
-  {
-    id: 'LOVE_HEALTH',
-    title: 'Batch 4: Hubungan & Raga',
-    prompt: `
-    Bahas House 7 (Pasangan) dan House 6 (Kesehatan). 
-    Cinta bukan soal angka, tapi soal karma. Bahas pola berulang yang harus ${clientName} putus.
-    Untuk kesehatan, hubungkan dengan kondisi emosional (Psikosomatis).
-    `
-  },
-  {
-    id: 'FUTURE_REMEDY',
-    title: 'Batch 5: Misi Jiwa & Forecast',
-    prompt: `
-    Tutup surat ini dengan Misi Jiwa (Dharma) dan Forecast 4 minggu ke depan.
-    Berikan "Natalie's Remedy" — langkah spiritual praktis. 
-    Laporan ini harus berakhir dengan perasaan harapan dan kejelasan bagi ${clientName}.
-    `
-  }
+  { id: 'BAB1', title: 'Bab 1: Lagna & Cara Pandang Dunia', prompt: `Sapa klien dengan hangat. Cari Nama Klien di data, tulis [[NAME: Nama]]. Bahas Lagna (Ascendant) sebagai filter utama mereka dalam menjalani hidup.` },
+  { id: 'BAB2', title: 'Bab 2: Finansial & Nilai Diri', prompt: `Bahas House 2. Fokus pada cara mereka mencari keamanan finansial dan apa yang mereka hargai secara personal.` },
+  { id: 'BAB3', title: 'Bab 3: Inisiatif & Komunikasi', prompt: `Bahas House 3. Kekuatan kemauan, cara bicara, dan bagaimana mereka mengeksekusi ide.` },
+  { id: 'BAB4', title: 'Bab 4: Ketenangan Batin & Ibu', prompt: `Bahas House 4. Hubungan dengan akar/keluarga dan apa yang membuat mereka merasa benar-benar aman secara emosional.` },
+  { id: 'BAB5', title: 'Bab 5: Talenta & Intuisi', prompt: `Bahas House 5. Kreativitas, kecerdasan bawaan, dan hal-hal yang mereka sukai secara murni.` },
+  { id: 'BAB6', title: 'Bab 6: Disiplin & Hambatan', prompt: `Bahas House 6. Cara menghadapi konflik, rutinitas kesehatan, dan rintangan harian.` },
+  { id: 'BAB7', title: 'Bab 7: Dinamika Hubungan', prompt: `Bahas House 7. Interaksi dengan orang lain, pasangan, dan kontrak sosial yang mereka jalani.` },
+  { id: 'BAB8', title: 'Bab 8: Transformasi & Krisis', prompt: `Bahas House 8. Kejadian tak terduga, kedalaman batin, dan bagaimana mereka bangkit dari perubahan besar.` },
+  { id: 'BAB9', title: 'Bab 9: Filosofi & Keberuntungan', prompt: `Bahas House 9. Pandangan spiritual, hubungan dengan figur guru/ayah, dan faktor keberuntungan.` },
+  { id: 'BAB10', title: 'Bab 10: Karier & Kontribusi Publik', prompt: `Bahas House 10. Peran mereka di masyarakat, pencapaian profesional, dan tanggung jawab.` },
+  { id: 'BAB11', title: 'Bab 11: Pencapaian & Koneksi', prompt: `Bahas House 11. Keuntungan finansial, pertemanan, dan ambisi jangka panjang.` },
+  { id: 'BAB12', title: 'Bab 12: Refleksi & Pelepasan', prompt: `Bahas House 12. Hal-hal di balik layar, pengeluaran, dan kebutuhan untuk menyendiri/healing.` },
+  { id: 'BAB13', title: 'Bab 13: Poros Rahu & Ketu', prompt: `Bahas Shadow Work. Di mana area obsesi (Rahu) dan di mana area pelepasan (Ketu) dalam hidup mereka saat ini.` },
+  { id: 'BAB14', title: 'Bab 14: Navigasi Waktu (Dasha)', prompt: `Bahas periode waktu saat ini (${dateContext}). Jelaskan energi yang mendominasi saat ini secara praktis.` },
+  { id: 'BAB15', title: 'Bab 15: Natalie\'s Guidance & Remedy', prompt: `Berikan saran praktis (Remedy) untuk menyeimbangkan energi. Tutup surat dengan pesan penguat yang jelas.` }
 ];
 
 export const generateReport = async (
@@ -94,7 +57,6 @@ export const generateReport = async (
   onNameDetected?: (name: string) => void
 ): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  // Default to Gemini 3 Flash Preview for optimal balance of speed and intelligence
   const model = data.selectedModel || 'gemini-3-flash-preview';
   const pricing = PRICING[model as keyof typeof PRICING] || PRICING['gemini-3-flash-preview'];
 
@@ -107,72 +69,80 @@ export const generateReport = async (
   const sections = getSections(formatDate(data.analysisDate), currentClientName);
 
   for (const section of sections) {
-    onStatusUpdate(`Natalie sedang merenungi ${section.title}...`);
-    
-    const prompt = `
-    [KONTEKS SURAT SEBELUMNYA]: ${rollingContext || "Ini adalah awal percakapan."}
-    [KERESAHAN UTAMA KLIEN]: "${data.concerns || "Ingin tahu gambaran hidup umum."}"
-    [INSTRUKSI KHUSUS]: ${section.prompt}
-    [DATA DATA]: ${data.rawText || "Gunakan file terlampir."}
-    `;
+    let attempts = 0;
+    const maxAttempts = 3;
+    let sectionSuccess = false;
 
-    const processedFiles: any[] = [];
-    for (const file of data.files) {
-      const base64Data = await fileToBase64(file);
-      processedFiles.push({ inlineData: { mimeType: file.type, data: base64Data } });
-    }
+    while (attempts < maxAttempts && !sectionSuccess) {
+      try {
+        onStatusUpdate(`Natalie menganalisis ${section.title}... ${attempts > 0 ? `(Mencoba lagi ${attempts})` : ''}`);
+        
+        const prompt = `
+        [KONTEKS SEBELUMNYA]: ${rollingContext || "Awal sesi."}
+        [KERESAHAN KLIEN]: "${data.concerns || "Umum"}"
+        [TUGAS]: ${section.prompt}
+        [DATA VEDIC]: ${data.rawText || "Lihat file"}
+        `;
 
-    const chainPrompt = `
-    Setelah menulis bagian di atas, tambahkan di paling bawah outputmu sebuah blok:
-    [[CONTEXT_FOR_NEXT: (Tulis 2 kalimat rangkuman energi untuk Natalie gunakan di bab selanjutnya agar nyambung)]]
-    `;
-
-    const responseStream = await ai.models.generateContentStream({
-      model: model,
-      contents: { role: 'user', parts: [{ text: prompt + "\n" + chainPrompt }, ...processedFiles] },
-      config: {
-        systemInstruction: NATALIE_SYSTEM_PROMPT,
-        temperature: 0.8,
-      }
-    });
-
-    let sectionContent = "";
-    const nameRegex = /\[\[NAME:\s*(.*?)\]\]/i;
-    const contextRegex = /\[\[CONTEXT_FOR_NEXT:\s*(.*?)\]\]/is;
-
-    for await (const chunk of responseStream) {
-      const text = chunk.text;
-      if (text) {
-        sectionContent += text;
-        if (section.id === 'FOUNDATION') {
-          const nameMatch = sectionContent.match(nameRegex);
-          if (nameMatch && onNameDetected) onNameDetected(nameMatch[1].trim());
+        const processedFiles: any[] = [];
+        for (const file of data.files) {
+          const base64Data = await fileToBase64(file);
+          processedFiles.push({ inlineData: { mimeType: file.type, data: base64Data } });
         }
 
-        let displayContent = (accumulatedReport ? accumulatedReport + "\n\n" : "") + sectionContent;
-        displayContent = displayContent.replace(nameRegex, "").replace(contextRegex, "").trim();
-        onStream(displayContent);
-      }
+        const chainPrompt = `\n\n[[CONTEXT_FOR_NEXT: (Rangkuman teknis singkat bab ini untuk memandu Natalie di bab berikutnya)]]`;
 
-      if (chunk.usageMetadata) {
-        totalInputTokens += chunk.usageMetadata.promptTokenCount;
-        totalOutputTokens += chunk.usageMetadata.candidatesTokenCount;
-        onUsageUpdate({
-          inputTokens: totalInputTokens,
-          outputTokens: totalOutputTokens,
-          totalCost: ((totalInputTokens / 1000000) * pricing.input) + ((totalOutputTokens / 1000000) * pricing.output)
+        const responseStream = await ai.models.generateContentStream({
+          model: model,
+          contents: { role: 'user', parts: [{ text: prompt + chainPrompt }, ...processedFiles] },
+          config: { systemInstruction: NATALIE_SYSTEM_PROMPT, temperature: 0.7 }
         });
+
+        let sectionContent = "";
+        const nameRegex = /\[\[NAME:\s*(.*?)\]\]/i;
+        const contextRegex = /\[\[CONTEXT_FOR_NEXT:\s*(.*?)\]\]/is;
+
+        for await (const chunk of responseStream) {
+          const text = chunk.text;
+          if (text) {
+            sectionContent += text;
+            if (section.id === 'BAB1') {
+              const nameMatch = sectionContent.match(nameRegex);
+              if (nameMatch && onNameDetected) onNameDetected(nameMatch[1].trim());
+            }
+            let displayContent = (accumulatedReport ? accumulatedReport + "\n\n" : "") + sectionContent;
+            displayContent = displayContent.replace(nameRegex, "").replace(contextRegex, "").trim();
+            onStream(displayContent);
+          }
+
+          if (chunk.usageMetadata) {
+            totalInputTokens += chunk.usageMetadata.promptTokenCount;
+            totalOutputTokens += chunk.usageMetadata.candidatesTokenCount;
+            onUsageUpdate({
+              inputTokens: totalInputTokens,
+              outputTokens: totalOutputTokens,
+              totalCost: ((totalInputTokens / 1000000) * pricing.input) + ((totalOutputTokens / 1000000) * pricing.output)
+            });
+          }
+        }
+
+        const contextMatch = sectionContent.match(contextRegex);
+        if (contextMatch) rollingContext = contextMatch[1].trim();
+
+        let cleanText = sectionContent.replace(nameRegex, "").replace(contextRegex, "").trim();
+        if (accumulatedReport) accumulatedReport += "\n\n";
+        accumulatedReport += cleanText;
+        sectionSuccess = true;
+
+      } catch (err) {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          accumulatedReport += `\n\n*(Natalie melewati analisis Bab ${section.id} karena gangguan energi, dilanjutkan ke bab berikutnya...)*`;
+        } else {
+          await wait(2000 * attempts);
+        }
       }
     }
-
-    const contextMatch = sectionContent.match(contextRegex);
-    if (contextMatch) {
-      rollingContext = contextMatch[1].trim();
-    }
-
-    let finalSectionText = sectionContent.replace(nameRegex, "").replace(contextRegex, "").trim();
-    if (accumulatedReport) accumulatedReport += "\n\n";
-    accumulatedReport += finalSectionText;
   }
 
   return accumulatedReport;
