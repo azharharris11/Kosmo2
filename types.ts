@@ -1,3 +1,4 @@
+
 export interface ClientData {
   id: string; // Unique ID for batch processing
   clientName: string;
