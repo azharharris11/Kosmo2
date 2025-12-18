@@ -2,152 +2,293 @@ import React, { useState } from 'react';
 import { ClientData } from '../types';
 
 interface InputSectionProps {
-  onSubmit: (data: ClientData) => void;
+  onStartBatch: (queue: ClientData[]) => void;
   isLoading: boolean;
 }
 
-const InputSection: React.FC<InputSectionProps> = ({ onSubmit, isLoading }) => {
-  const [clientName, setClientName] = useState('');
-  const [rawText, setRawText] = useState('');
-  const [concerns, setConcerns] = useState('');
-  const [files, setFiles] = useState<File[]>([]);
-  // Default to current month YYYY-MM
+const InputSection: React.FC<InputSectionProps> = ({ onStartBatch, isLoading }) => {
+  // Form States for Global Settings
   const [analysisDate, setAnalysisDate] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-3-pro-preview'>('gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-3-flash-preview' | 'gemini-3-pro-preview'>('gemini-2.5-flash');
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFiles(Array.from(e.target.files));
+  // Queue State
+  const [queue, setQueue] = useState<ClientData[]>([]);
+  
+  // State for manual entry
+  const [manualName, setManualName] = useState('');
+  const [manualText, setManualText] = useState('');
+
+  // State to track which item is currently expanded for editing
+  const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
+
+  // BULK UPLOAD HANDLER
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles: File[] = Array.from(e.target.files);
+      
+      const newQueueItems: ClientData[] = newFiles.map((file, index) => {
+        // Use filename (without extension) as temporary name
+        const tempName = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+        
+        return {
+          id: `${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
+          clientName: tempName, 
+          rawText: "",
+          files: [file],
+          concerns: "", // Starts empty, user can edit in list
+          analysisDate: analysisDate,
+          selectedModel: selectedModel
+        };
+      });
+
+      setQueue(prev => [...prev, ...newQueueItems]);
+      e.target.value = '';
     }
   };
 
-  const handleSubmit = () => {
-    if (!clientName.trim()) {
-      alert("Mohon masukkan Nama Klien agar analisis lebih personal.");
+  const handleAddManual = () => {
+    if (!manualName.trim() && !manualText.trim()) {
+      alert("Untuk input manual, mohon isi Nama atau Data Teks.");
       return;
     }
-    if (!rawText && files.length === 0) {
-      alert("Mohon masukkan data teks atau upload gambar/PDF chart.");
-      return;
-    }
-    onSubmit({ clientName, rawText, concerns, files, analysisDate, selectedModel });
+
+    const newClient: ClientData = {
+      id: Date.now().toString(),
+      clientName: manualName || "Manual Client",
+      rawText: manualText,
+      concerns: "",
+      files: [],
+      analysisDate,
+      selectedModel
+    };
+
+    setQueue([...queue, newClient]);
+    setManualName('');
+    setManualText('');
+  };
+
+  const handleRemoveFromQueue = (id: string) => {
+    setQueue(queue.filter(q => q.id !== id));
+    if (expandedClientId === id) setExpandedClientId(null);
+  };
+
+  const updateClientData = (id: string, field: keyof ClientData, value: any) => {
+    setQueue(queue.map(client => 
+      client.id === id ? { ...client, [field]: value } : client
+    ));
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-8 bg-midnight/50 border border-gold/30 rounded-lg backdrop-blur-sm shadow-2xl">
-      <div className="text-center mb-10">
-        <h2 className="font-cinzel text-3xl text-gold mb-2">Data Klien</h2>
-        <p className="font-serif italic text-gray-400">Silahkan unggah data chart Vedic (PDF/Gambar) atau salin teks data di bawah ini.</p>
-      </div>
-
-      <div className="space-y-8">
-        
-        {/* Nama Klien Input */}
-        <div>
-          <label className="block font-cinzel text-gold-dim mb-2 text-sm tracking-widest">Nama Lengkap</label>
-          <input 
-            type="text" 
-            value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-            placeholder="Contoh: Budi Santoso"
-            className="w-full bg-black/40 border border-gold/20 rounded p-4 text-parchment font-cinzel text-lg focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold placeholder-gray-600"
-          />
+    <div className="flex flex-col lg:flex-row gap-8 w-full max-w-7xl mx-auto">
+      
+      {/* LEFT: INPUT FORM */}
+      <div className="flex-1 p-8 bg-midnight/50 border border-gold/30 rounded-lg backdrop-blur-sm shadow-2xl h-fit">
+        <div className="text-center mb-8">
+          <h2 className="font-cinzel text-2xl text-gold mb-2">Input Massal</h2>
+          <p className="font-serif italic text-gray-400 text-sm">Upload banyak file chart sekaligus. AI akan mendeteksi nama otomatis, atau anda bisa edit detailnya di kolom kanan.</p>
         </div>
 
-        {/* Context Date Selection & Model Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-             {/* File Upload */}
-             <div className="md:col-span-1 border-2 border-dashed border-gold/30 rounded-lg p-6 text-center hover:border-gold/60 transition-colors bg-black/20 h-32 flex flex-col justify-center">
-              <input 
-                type="file" 
-                id="fileInput" 
-                multiple 
-                accept="image/*,.txt,.pdf"
-                onChange={handleFileChange}
-                className="hidden" 
-              />
-              <label htmlFor="fileInput" className="cursor-pointer flex flex-col items-center">
-                <svg className="w-8 h-8 text-gold mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span className="text-sm font-serif text-gold-light">
-                  {files.length > 0 
-                    ? `${files.length} file dipilih` 
-                    : "Upload Chart"}
-                </span>
-              </label>
-            </div>
-
-            {/* Date Context */}
-            <div>
-              <label className="block font-cinzel text-gold-dim mb-2 text-sm tracking-widest">Waktu Analisis</label>
+        <div className="space-y-6">
+           {/* GLOBAL SETTINGS */}
+           <div className="grid grid-cols-2 gap-4 p-4 bg-black/20 rounded border border-gold/10">
+             <div>
+              <label className="block font-cinzel text-gold-dim mb-1 text-xs tracking-widest">Waktu Analisis</label>
               <input 
                 type="month"
                 value={analysisDate}
                 onChange={(e) => setAnalysisDate(e.target.value)}
-                className="w-full bg-black/40 border border-gold/20 rounded p-4 text-gold font-cinzel text-center text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold appearance-none h-[52px]"
+                className="w-full bg-black/40 border border-gold/20 rounded p-2 text-gold font-cinzel text-xs h-[38px]"
               />
             </div>
-
-            {/* Model Selection */}
             <div>
-              <label className="block font-cinzel text-gold-dim mb-2 text-sm tracking-widest">Model Intelijen</label>
-              <div className="relative">
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value as any)}
-                  className="w-full bg-black/40 border border-gold/20 rounded p-4 pr-8 text-gold font-cinzel text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold appearance-none h-[52px]"
-                >
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (Cepat)</option>
-                  <option value="gemini-3-pro-preview">Gemini 3.0 Pro (Detail)</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gold">
-                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                </div>
-              </div>
+              <label className="block font-cinzel text-gold-dim mb-1 text-xs tracking-widest">Model Default</label>
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value as any)}
+                className="w-full bg-black/40 border border-gold/20 rounded p-2 text-gold font-cinzel text-xs h-[38px]"
+              >
+                <option value="gemini-2.5-flash">Flash 2.5 (Cepat)</option>
+                <option value="gemini-3-flash-preview">Flash 3.0 (Seimbang)</option>
+                <option value="gemini-3-pro-preview">Pro 3.0 (Detail)</option>
+              </select>
             </div>
-        </div>
+          </div>
 
-        {/* Manual Text Input */}
-        <div>
-          <label className="block font-cinzel text-gold-dim mb-2 text-sm tracking-widest">Atau Paste Data Manual</label>
-          <textarea
-            value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
-            placeholder="Paste raw Vedic data details here (Planetary positions, Dashas, etc)..."
-            className="w-full h-32 bg-black/40 border border-gold/20 rounded p-4 text-parchment font-mono text-sm focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
-          />
-        </div>
+          {/* BULK FILE UPLOAD AREA */}
+          <div className="border-2 border-dashed border-gold/30 rounded-lg p-8 text-center hover:border-gold/60 transition-colors bg-gold/5 group cursor-pointer relative">
+            <input 
+              type="file" 
+              id="fileInput" 
+              multiple 
+              accept="image/*,.txt,.pdf"
+              onChange={handleFileSelect}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+            />
+            <div className="flex flex-col items-center pointer-events-none">
+              <span className="text-4xl text-gold mb-2 group-hover:scale-110 transition-transform">✦</span>
+              <span className="font-cinzel font-bold text-gold text-lg">UPLOAD CHART IMAGES / PDF</span>
+              <span className="text-xs font-serif text-gray-400 mt-2">Drag & Drop atau Klik untuk memilih banyak file</span>
+            </div>
+          </div>
 
-        {/* Concerns Input */}
-        <div>
-          <label className="block font-cinzel text-gold-dim mb-2 text-sm tracking-widest">Keresahan & Fokus (Opsional)</label>
-          <p className="text-xs text-gray-500 mb-2 font-serif italic">
-            "Jika ada keresahan yang anda jalani saat ini, silahkan di tuliskan dibawah ini, akan saya bantu carikan jawabannya, jika tidak ada bisa dikosongkan"
-          </p>
-          <textarea
-            value={concerns}
-            onChange={(e) => setConcerns(e.target.value)}
-            placeholder="Ceritakan keresahan anda..."
-            className="w-full h-32 bg-black/40 border border-gold/20 rounded p-4 text-parchment font-serif text-base focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
-          />
-        </div>
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-gray-700"></div>
+            <span className="flex-shrink-0 mx-4 text-gray-600 text-xs uppercase font-cinzel">Atau Input Manual</span>
+            <div className="flex-grow border-t border-gray-700"></div>
+          </div>
 
-        {/* Submit Button */}
-        <div className="flex justify-center pt-4">
-          <button
-            onClick={handleSubmit}
-            disabled={isLoading}
-            className="group relative px-12 py-4 bg-transparent overflow-hidden rounded-sm w-full md:w-auto"
-          >
-            <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-gold/10 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 ease-out origin-left"></span>
-            <span className="absolute inset-0 border border-gold/40"></span>
-            <span className="relative font-cinzel text-gold tracking-widest font-bold group-hover:text-white transition-colors">
-              {isLoading ? "Reading the Stars..." : "Generate Analysis"}
-            </span>
-          </button>
+          {/* MANUAL TEXT FALLBACK */}
+          <div className="space-y-4 opacity-70 hover:opacity-100 transition-opacity">
+            <input 
+              type="text" 
+              value={manualName}
+              onChange={(e) => setManualName(e.target.value)}
+              placeholder="Nama Klien (Opsional jika upload file)"
+              className="w-full bg-black/40 border border-gold/20 rounded p-3 text-parchment font-cinzel text-sm focus:border-gold focus:outline-none"
+            />
+             <textarea
+              value={manualText}
+              onChange={(e) => setManualText(e.target.value)}
+              placeholder="Paste Data Planet (Text)..."
+              className="w-full h-16 bg-black/40 border border-gold/20 rounded p-3 text-parchment font-mono text-xs focus:border-gold focus:outline-none"
+            />
+            <button
+              onClick={handleAddManual}
+              className="w-full py-2 border border-gold/40 text-gold-dim font-cinzel hover:bg-gold hover:text-midnight transition-colors text-xs uppercase"
+            >
+              + Tambah Manual
+            </button>
+          </div>
+
         </div>
       </div>
+
+      {/* RIGHT: QUEUE LIST (MANIFEST) */}
+      <div className="w-full lg:w-1/3 bg-midnight/80 border-l border-gold/30 p-8 min-h-[500px] flex flex-col">
+         <div className="mb-6 border-b border-gold/20 pb-4">
+            <h2 className="font-cinzel text-2xl text-gold">Manifest Klien</h2>
+            <p className="font-serif text-gray-500 text-sm">
+              Klik pada kartu klien untuk menambahkan "Keresahan".
+            </p>
+         </div>
+
+         <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar max-h-[600px]">
+            {queue.length === 0 ? (
+              <div className="text-center text-gray-600 mt-20 italic">
+                Antrian kosong.
+              </div>
+            ) : (
+              queue.map((client, idx) => {
+                const isExpanded = expandedClientId === client.id;
+                
+                return (
+                  <div 
+                    key={client.id} 
+                    className={`bg-black/40 border rounded transition-all duration-300 overflow-hidden
+                      ${isExpanded ? 'border-gold shadow-lg' : 'border-gold/10 hover:border-gold/40'}
+                    `}
+                  >
+                     {/* Card Header (Always Visible) */}
+                     <div 
+                       className="p-4 flex justify-between items-center cursor-pointer"
+                       onClick={() => setExpandedClientId(isExpanded ? null : client.id)}
+                     >
+                        <div className="flex-1 min-w-0 pr-4">
+                            <h4 className="font-cinzel text-parchment text-lg truncate">
+                              {idx + 1}. {client.clientName}
+                            </h4>
+                            <div className="text-xs text-gold-dim font-serif mt-1 flex gap-2 items-center">
+                              <span className="bg-gold/10 px-2 py-0.5 rounded">
+                                {client.selectedModel.includes('pro') ? 'PRO 3.0' : client.selectedModel.includes('3-flash') ? 'FLASH 3.0' : 'FLASH 2.5'}
+                              </span>
+                              {client.concerns && (
+                                <span className="text-green-500" title="Keresahan terisi">●</span>
+                              )}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-gold transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleRemoveFromQueue(client.id); }}
+                            className="text-gray-600 hover:text-red-500 transition-colors px-2 py-1"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                     </div>
+
+                     {/* Expanded Edit Form */}
+                     {isExpanded && (
+                       <div className="p-4 pt-0 border-t border-gold/10 bg-black/20 animate-fade-in-down">
+                          
+                          {/* Edit Name */}
+                          <div className="mb-3">
+                            <label className="text-[10px] uppercase font-cinzel text-gray-500 block mb-1">Nama Klien</label>
+                            <input 
+                              type="text" 
+                              value={client.clientName}
+                              onChange={(e) => updateClientData(client.id, 'clientName', e.target.value)}
+                              className="w-full bg-black/60 border border-gold/20 rounded p-2 text-parchment font-cinzel text-sm focus:border-gold focus:outline-none"
+                            />
+                          </div>
+
+                          {/* Edit Model Per Client */}
+                          <div className="mb-3">
+                            <label className="text-[10px] uppercase font-cinzel text-gray-500 block mb-1">Model Khusus</label>
+                            <select
+                              value={client.selectedModel}
+                              onChange={(e) => updateClientData(client.id, 'selectedModel', e.target.value)}
+                              className="w-full bg-black/60 border border-gold/20 rounded p-2 text-gold font-cinzel text-xs focus:border-gold focus:outline-none"
+                            >
+                              <option value="gemini-2.5-flash">Flash 2.5</option>
+                              <option value="gemini-3-flash-preview">Flash 3.0</option>
+                              <option value="gemini-3-pro-preview">Pro 3.0</option>
+                            </select>
+                          </div>
+
+                          {/* Edit Concerns */}
+                          <div>
+                            <label className="text-[10px] uppercase font-cinzel text-gray-500 block mb-1">Keresahan & Fokus (Penting)</label>
+                            <textarea
+                              value={client.concerns}
+                              onChange={(e) => updateClientData(client.id, 'concerns', e.target.value)}
+                              placeholder="Contoh: Takut gagal nikah, karir mentok..."
+                              className="w-full h-24 bg-black/60 border border-gold/20 rounded p-2 text-parchment font-serif text-sm focus:border-gold focus:outline-none placeholder-gray-700"
+                            />
+                          </div>
+
+                          <div className="mt-2 text-right">
+                             <button 
+                               onClick={() => setExpandedClientId(null)}
+                               className="text-xs text-gold hover:underline"
+                             >
+                               Selesai
+                             </button>
+                          </div>
+                       </div>
+                     )}
+                  </div>
+                );
+              })
+            )}
+         </div>
+
+         <div className="mt-6 pt-6 border-t border-gold/20">
+            <button
+              onClick={() => onStartBatch(queue)}
+              disabled={queue.length === 0 || isLoading}
+              className={`w-full py-4 font-cinzel font-bold tracking-[0.2em] text-lg transition-all
+                ${queue.length === 0 
+                  ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
+                  : 'bg-gold text-midnight hover:bg-white shadow-[0_0_20px_rgba(212,175,55,0.4)]'
+                }
+              `}
+            >
+              MULAI ANALISIS ({queue.length})
+            </button>
+         </div>
+      </div>
+
     </div>
   );
 };

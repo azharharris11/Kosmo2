@@ -3,163 +3,267 @@ import { createRoot } from 'react-dom/client';
 import InputSection from './components/InputSection';
 import ReportView from './components/ReportView';
 import LoadingScreen from './components/LoadingScreen';
-import { ClientData, ReportState, Step, UsageStats } from './types';
+import { ClientData, ReportState, Step, UsageStats, BatchItem } from './types';
 import { generateReport } from './services/geminiService';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<Step>(Step.INPUT);
-  const [analysisDate, setAnalysisDate] = useState<string>(''); // Store the selected date
   const [reportState, setReportState] = useState<ReportState>({
     isLoading: false,
     isStreaming: false,
-    content: '',
-    error: null,
-    generatedDate: null,
-    currentSection: null,
-    usage: null,
+    currentProcessingId: null,
+    batchItems: [],
   });
+  
+  // State to view a single report from the batch list
+  const [viewingClientId, setViewingClientId] = useState<string | null>(null);
 
-  const handleFormSubmit = async (data: ClientData) => {
-    setStep(Step.GENERATING);
-    setAnalysisDate(data.analysisDate); // Save the date context
-    setReportState(prev => ({ 
-      ...prev, 
-      isLoading: true, 
-      error: null, 
-      content: '',
-      currentSection: 'Mempersiapkan koneksi...',
-      usage: { inputTokens: 0, outputTokens: 0, totalCost: 0 }
+  const handleStartBatch = async (queue: ClientData[]) => {
+    // Initialize batch items
+    const initialBatchItems: BatchItem[] = queue.map(client => ({
+      client,
+      status: 'PENDING',
+      resultContent: '',
+      usage: null
     }));
 
-    try {
-      await generateReport(
-        data, 
-        (fullText) => {
-          setReportState(prev => ({
-            ...prev,
-            isLoading: false,
-            isStreaming: true,
-            content: fullText
-          }));
-        },
-        (status) => {
-          setReportState(prev => ({
-            ...prev,
-            currentSection: status
-          }));
-        },
-        (usage: UsageStats) => {
-          setReportState(prev => ({
-            ...prev,
-            usage: usage
-          }));
-        }
-      );
-      
-      setStep(Step.RESULT);
-      setReportState(prev => ({ 
-        ...prev, 
-        isStreaming: false, 
-        isLoading: false,
-        generatedDate: new Date().toISOString(),
-        currentSection: null
-      }));
+    setReportState({
+      isLoading: true,
+      isStreaming: false,
+      currentProcessingId: null,
+      batchItems: initialBatchItems
+    });
+    setStep(Step.GENERATING);
 
-    } catch (error) {
-      console.error(error);
+    // Process Sequentially
+    for (let i = 0; i < queue.length; i++) {
+      const client = queue[i];
+      
+      // Update status to processing
       setReportState(prev => ({
         ...prev,
-        isLoading: false,
-        isStreaming: false,
-        currentSection: null,
-        error: "Gagal terhubung dengan energi kosmik (API Error). Silakan coba lagi."
+        currentProcessingId: client.id,
+        isStreaming: true,
+        batchItems: prev.batchItems.map(item => 
+          item.client.id === client.id ? { ...item, status: 'PROCESSING' } : item
+        )
       }));
-      setStep(Step.INPUT);
+
+      try {
+        await generateReport(
+          client,
+          (chunkContent) => {
+            // Live update the specific client's content
+            setReportState(prev => ({
+              ...prev,
+              batchItems: prev.batchItems.map(item => 
+                item.client.id === client.id ? { ...item, resultContent: chunkContent } : item
+              )
+            }));
+          },
+          (statusUpdate) => {
+             // Optional: You can track specific status messages per client if needed
+          },
+          (usage) => {
+            setReportState(prev => ({
+              ...prev,
+              batchItems: prev.batchItems.map(item => 
+                item.client.id === client.id ? { ...item, usage: usage } : item
+              )
+            }));
+          },
+          (detectedName) => {
+             // NEW: When AI finds the name, update the client object in state
+             console.log("Name detected by AI:", detectedName);
+             setReportState(prev => ({
+               ...prev,
+               batchItems: prev.batchItems.map(item => 
+                 item.client.id === client.id 
+                 ? { ...item, client: { ...item.client, clientName: detectedName } } 
+                 : item
+               )
+             }));
+          }
+        );
+
+        // Mark as completed
+        setReportState(prev => ({
+          ...prev,
+          batchItems: prev.batchItems.map(item => 
+            item.client.id === client.id ? { ...item, status: 'COMPLETED' } : item
+          )
+        }));
+
+      } catch (error: any) {
+        console.error(`Error processing client ${client.clientName}:`, error);
+        setReportState(prev => ({
+          ...prev,
+          batchItems: prev.batchItems.map(item => 
+            item.client.id === client.id 
+              ? { ...item, status: 'ERROR', error: error.message || "Gagal memproses." } 
+              : item
+          )
+        }));
+      }
     }
+
+    // All done
+    setReportState(prev => ({ ...prev, isLoading: false, isStreaming: false, currentProcessingId: null }));
+    setStep(Step.RESULT_LIST);
   };
 
-  const handleReset = () => {
+  const handleViewReport = (clientId: string) => {
+    setViewingClientId(clientId);
+    setStep(Step.RESULT_VIEW);
+  };
+
+  const handleBackToList = () => {
+    setViewingClientId(null);
+    setStep(Step.RESULT_LIST);
+  };
+
+  const handleNewSession = () => {
     setStep(Step.INPUT);
     setReportState({
       isLoading: false,
       isStreaming: false,
-      content: '',
-      error: null,
-      generatedDate: null,
-      currentSection: null,
-      usage: null
+      currentProcessingId: null,
+      batchItems: []
     });
+    setViewingClientId(null);
   };
+
+  // Helper to find currently viewing item
+  const currentViewItem = reportState.batchItems.find(item => item.client.id === viewingClientId);
 
   return (
     <div className="min-h-screen w-full bg-midnight text-parchment bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]">
-      {/* Background Gradient */}
       <div className="fixed inset-0 pointer-events-none bg-gradient-to-b from-transparent via-midnight/80 to-midnight"></div>
 
       <div className="relative z-10 container mx-auto px-4 py-8">
         
-        {step === Step.INPUT && (
-          <header className="text-center mb-16 pt-10">
-            <h1 className="font-cinzel text-5xl md:text-7xl text-gold mb-4 tracking-widest drop-shadow-[0_0_15px_rgba(212,175,55,0.5)]">
+        {/* HEADER */}
+        {step !== Step.RESULT_VIEW && (
+          <header className="text-center mb-10 pt-6">
+            <h1 className="font-cinzel text-5xl md:text-6xl text-gold mb-2 tracking-widest drop-shadow-[0_0_15px_rgba(212,175,55,0.5)]">
               Natalie Lau
             </h1>
-            <p className="font-serif text-xl md:text-2xl text-gray-300 tracking-wide uppercase border-t border-b border-gold/30 inline-block py-3 px-8">
-              Senior Cosmography Consultant
+            <p className="font-serif text-xl text-gray-300 tracking-wide uppercase border-t border-b border-gold/30 inline-block py-2 px-8">
+              Cosmography Office
             </p>
           </header>
         )}
 
         <main className="w-full">
+          {/* STEP 1: INPUT QUEUE */}
           {step === Step.INPUT && (
             <div className="animate-fade-in-up">
-              <InputSection onSubmit={handleFormSubmit} isLoading={reportState.isLoading} />
-              {reportState.error && (
-                <div className="max-w-4xl mx-auto mt-6 p-4 bg-red-900/30 border border-red-500/50 text-red-200 text-center rounded">
-                  {reportState.error}
+              <InputSection onStartBatch={handleStartBatch} isLoading={reportState.isLoading} />
+            </div>
+          )}
+
+          {/* STEP 2 & 3: PROCESSING & LIST */}
+          {(step === Step.GENERATING || step === Step.RESULT_LIST) && (
+            <div className="max-w-5xl mx-auto">
+              
+              {step === Step.GENERATING && (
+                 <div className="text-center mb-12">
+                   <LoadingScreen />
+                   <div className="mt-4 font-cinzel text-gold text-xl animate-pulse">
+                     Memproses: {reportState.batchItems.find(i => i.client.id === reportState.currentProcessingId)?.client.clientName}
+                   </div>
+                   <p className="text-sm text-gray-500 mt-2 font-serif italic">
+                      "Sedang membaca pola bintang dan mencari nama..."
+                   </p>
+                 </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {reportState.batchItems.map((item) => (
+                  <div 
+                    key={item.client.id} 
+                    className={`
+                      relative p-6 rounded border transition-all duration-500
+                      ${item.status === 'PROCESSING' ? 'bg-gold/10 border-gold shadow-[0_0_20px_rgba(212,175,55,0.2)] scale-105' : ''}
+                      ${item.status === 'PENDING' ? 'bg-black/40 border-gold/10 opacity-60' : ''}
+                      ${item.status === 'COMPLETED' ? 'bg-midnight border-gold/50 hover:border-gold hover:shadow-lg cursor-pointer' : ''}
+                      ${item.status === 'ERROR' ? 'bg-red-900/20 border-red-500/50' : ''}
+                    `}
+                    onClick={() => item.status === 'COMPLETED' ? handleViewReport(item.client.id) : null}
+                  >
+                    {/* Status Badge */}
+                    <div className="absolute top-4 right-4">
+                      {item.status === 'PENDING' && <span className="text-xs font-cinzel text-gray-500">Menunggu</span>}
+                      {item.status === 'PROCESSING' && <span className="text-xs font-cinzel text-gold animate-pulse">Menulis...</span>}
+                      {item.status === 'COMPLETED' && <span className="text-xs font-cinzel text-green-400">✓ Selesai</span>}
+                      {item.status === 'ERROR' && <span className="text-xs font-cinzel text-red-400">! Gagal</span>}
+                    </div>
+
+                    <h3 className="font-cinzel text-xl text-parchment mb-1 truncate pr-4">{item.client.clientName}</h3>
+                    <p className="text-xs font-serif text-gold-dim uppercase tracking-widest mb-4">
+                      {item.client.selectedModel === 'gemini-3-pro-preview' ? 'Deep Analysis' : 'Fast Analysis'}
+                    </p>
+
+                    {item.status === 'PROCESSING' && (
+                       <div className="text-xs font-serif text-gray-400 italic line-clamp-3 h-12">
+                         {item.resultContent.slice(-100)}...
+                       </div>
+                    )}
+
+                    {item.status === 'COMPLETED' && (
+                       <div className="mt-4 flex justify-between items-end">
+                          <div className="text-xs text-gray-500">
+                             {(item.resultContent.length / 5).toFixed(0)} words
+                          </div>
+                          <button className="text-gold text-sm font-cinzel border-b border-gold hover:text-white">
+                             BUKA LAPORAN &rarr;
+                          </button>
+                       </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {step === Step.RESULT_LIST && (
+                <div className="mt-12 text-center">
+                  <button 
+                    onClick={handleNewSession}
+                    className="bg-transparent border border-gray-600 text-gray-400 px-8 py-3 font-cinzel hover:border-gold hover:text-gold transition-colors"
+                  >
+                    + Input Batch Baru
+                  </button>
                 </div>
               )}
             </div>
           )}
 
-          {step === Step.GENERATING && (
-            <div className="flex flex-col items-center">
-              <LoadingScreen />
-              
-              {/* Status Indicator */}
-              <div className="mt-8 text-center animate-pulse">
-                <p className="font-cinzel text-xl text-gold tracking-widest">
-                  {reportState.currentSection || "Connecting..."}
-                </p>
-                {/* Real-time Token Cost Display */}
-                {reportState.usage && (
-                  <p className="font-mono text-xs text-gold/60 mt-2">
-                    {reportState.usage.totalCost > 0 && `Est. Cost: $${reportState.usage.totalCost.toFixed(4)}`}
-                  </p>
-                )}
-              </div>
-
-              {/* Live Preview of Stream */}
-              <div className="w-full max-w-2xl mt-8 opacity-50 text-center font-serif text-sm">
-                 <div className="h-48 overflow-hidden relative fade-bottom border-t border-gold/20 pt-4">
-                    {reportState.content.slice(-500)}...
-                 </div>
-              </div>
-            </div>
+          {/* STEP 4: SINGLE VIEW */}
+          {step === Step.RESULT_VIEW && currentViewItem && (
+             <div className="animate-fade-in-up">
+                <div className="no-print fixed top-6 left-6 z-50">
+                   <button 
+                     onClick={handleBackToList}
+                     className="bg-midnight/90 text-parchment border border-gold/30 px-6 py-2 rounded font-cinzel hover:bg-gold/20 flex items-center gap-2"
+                   >
+                     &larr; Kembali ke Daftar
+                   </button>
+                </div>
+                <ReportView 
+                   content={currentViewItem.resultContent}
+                   onReset={() => {}} // Reset is handled by Back button in this mode
+                   usage={currentViewItem.usage}
+                   analysisDate={currentViewItem.client.analysisDate}
+                />
+             </div>
           )}
 
-          {step === Step.RESULT && (
-             <ReportView 
-                content={reportState.content} 
-                onReset={handleReset} 
-                usage={reportState.usage}
-                analysisDate={analysisDate} // Pass date to view
-             />
-          )}
         </main>
 
-        <footer className="no-print mt-20 text-center text-gray-600 font-cinzel text-xs pb-8">
-          &copy; 2025 Natalie Lau Cosmography. All rights reserved.
-        </footer>
+        {step !== Step.RESULT_VIEW && (
+          <footer className="no-print mt-20 text-center text-gray-600 font-cinzel text-xs pb-8">
+            &copy; 2025 Natalie Lau Cosmography. All rights reserved.
+          </footer>
+        )}
       </div>
     </div>
   );
